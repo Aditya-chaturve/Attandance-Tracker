@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 Attendance Tracker</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#0f1221;
+    --bg2:#1a1f3b;
+  }
+  *{font-family:'Inter',sans-serif;}
+  h1,h2,.font-sora{font-family:'Sora',sans-serif;}
+
+  body{
+    background:
+      radial-gradient(circle at 10% 10%, rgba(99,102,241,0.25), transparent 40%),
+      radial-gradient(circle at 90% 20%, rgba(236,72,153,0.2), transparent 40%),
+      radial-gradient(circle at 50% 100%, rgba(16,185,129,0.15), transparent 50%),
+      linear-gradient(180deg, var(--bg1), var(--bg2));
+    min-height:100vh;
+  }
+
+  .glass{
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(14px);
+    border:1px solid rgba(255,255,255,0.08);
+  }
+
+  .day-cell{
+    aspect-ratio:1/1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:10px;
+    font-size:11px;
+    font-weight:600;
+    cursor:pointer;
+    user-select:none;
+    transition: all .18s ease;
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.65);
+    border:1px solid rgba(255,255,255,0.06);
+  }
+  .day-cell:hover{
+    transform: translateY(-2px) scale(1.06);
+    background: rgba(255,255,255,0.12);
+  }
+  .day-cell.empty{
+    visibility:hidden;
+    cursor:default;
+  }
+  .day-cell.present{
+    background: linear-gradient(135deg,#10b981,#059669);
+    color:white;
+    border-color: rgba(16,185,129,0.6);
+    box-shadow:0 4px 14px rgba(16,185,129,0.4);
+  }
+  .day-cell.absent{
+    background: linear-gradient(135deg,#f43f5e,#be123c);
+    color:white;
+    border-color: rgba(244,63,94,0.6);
+    box-shadow:0 4px 14px rgba(244,63,94,0.4);
+  }
+  .day-cell.today{
+    outline:2px solid #fbbf24;
+    outline-offset:1px;
+  }
+
+  .month-card{
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .month-card:hover{
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+  }
+
+  .ring{
+    --val:0;
+    background: conic-gradient(#10b981 calc(var(--val)*1%), rgba(255,255,255,0.08) 0);
+    border-radius:50%;
+    transition: background 0.6s ease;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar{height:8px;width:8px;}
+  .scrollbar-thin::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:4px;}
+
+  .fade-in{
+    animation: fadeIn .5s ease both;
+  }
+  @keyframes fadeIn{
+    from{opacity:0; transform:translateY(8px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+
+  .btn-glow{
+    box-shadow: 0 0 0 0 rgba(99,102,241,0.6);
+    transition: box-shadow .3s ease, transform .2s ease;
+  }
+  .btn-glow:hover{
+    box-shadow: 0 0 25px 2px rgba(99,102,241,0.6);
+    transform: translateY(-1px);
+  }
+</style>
+</head>
+<body class="text-white">
+
+<!-- Header -->
+<header class="sticky top-0 z-30">
+  <div class="glass border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold font-sora bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-emerald-300 bg-clip-text text-transparent">
+          📅 Attendance Tracker 2026
+        </h1>
+        <p class="text-xs sm:text-sm text-white/50 mt-1">Tap a date → mark <span class="text-emerald-400 font-semibold">Present</span> → tap again → mark <span class="text-rose-400 font-semibold">Absent</span> → tap again → clear.</p>
+      </div>
+
+      <div class="flex items-center gap-3 sm:gap-5 flex-wrap">
+        <div class="glass rounded-xl px-4 py-2 text-center min-w-[90px]">
+          <div id="statOpen" class="text-lg font-bold font-sora">0</div>
+          <div class="text-[10px] uppercase tracking-wider text-white/50">Open Days</div>
+        </div>
+        <div class="glass rounded-xl px-4 py-2 text-center min-w-[90px]">
+          <div id="statPresent" class="text-lg font-bold font-sora text-emerald-400">0</div>
+          <div class="text-[10px] uppercase tracking-wider text-white/50">Present</div>
+        </div>
+        <div class="glass rounded-xl px-4 py-2 text-center min-w-[90px]">
+          <div id="statAbsent" class="text-lg font-bold font-sora text-rose-400">0</div>
+          <div class="text-[10px] uppercase tracking-wider text-white/50">Absent</div>
+        </div>
+
+        <div class="flex items-center gap-3 glass rounded-xl px-3 py-2">
+          <div class="ring w-14 h-14 flex items-center justify-center relative" id="ring">
+            <div class="w-10 h-10 rounded-full bg-[#141830] flex items-center justify-center text-[11px] font-bold" id="ringText">0%</div>
+          </div>
+          <div class="text-xs text-white/60 leading-tight">
+            Attendance<br><span class="font-semibold text-white">Percentage</span>
+          </div>
+        </div>
+
+        <button id="resetBtn" class="btn-glow bg-gradient-to-r from-rose-500 to-rose-600 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl">
+          Reset All
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Legend -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 mt-6">
+  <div class="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-white/70">
+    <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-md bg-white/10 border border-white/10 inline-block"></span> No Record</div>
+    <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 inline-block"></span> Present</div>
+    <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-md bg-gradient-to-br from-rose-500 to-rose-700 inline-block"></span> Absent</div>
+    <div class="flex items-center gap-2"><span class="w-4 h-4 rounded-md outline outline-2 outline-amber-400 inline-block"></span> Today</div>
+  </div>
+</div>
+
+<!-- Calendar Grid -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+  <div id="calendarGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+</main>
+
+<footer class="text-center text-white/30 text-xs pb-8">
+  Built for tracking college attendance • Year 2026 • Data saved locally in your browser
+</footer>
+
+<script>
+  const YEAR = 2026;
+  const STORAGE_KEY = 'attendance2026';
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const dayNames = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
+  let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+  function saveData(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function dateKey(y,m,d){
+    return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+
+  function isToday(y,m,d){
+    const t = new Date();
+    return t.getFullYear()===y && t.getMonth()===m && t.getDate()===d;
+  }
+
+  function cycleState(current){
+    if(current === undefined || current === null) return 'present';
+    if(current === 'present') return 'absent';
+    return null; // clear
+  }
+
+  function buildCalendar(){
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+
+    for(let m=0; m<12; m++){
+      const firstDay = new Date(YEAR, m, 1).getDay();
+      const daysInMonth = new Date(YEAR, m+1, 0).getDate();
+
+      const card = document.createElement('div');
+      card.className = 'month-card glass rounded-2xl p-4 sm:p-5 fade-in';
+      card.style.animationDelay = (m*0.03)+'s';
+
+      const title = document.createElement('div');
+      title.className = 'flex items-center justify-between mb-3';
+      title.innerHTML = `
+        <h2 class="font-sora font-bold text-base sm:text-lg">${monthNames[m]} <span class="text-white/40 font-normal">${YEAR}</span></h2>
+        <span class="text-[10px] px-2 py-1 rounded-full bg-white/5 text-white/50" id="month-pct-${m}">0%</span>
+      `;
+      card.appendChild(title);
+
+      const dowRow = document.createElement('div');
+      dowRow.className = 'grid grid-cols-7 gap-1.5 mb-1.5';
+      dayNames.forEach(d=>{
+        const el = document.createElement('div');
+        el.className = 'text-center text-[10px] font-semibold text-white/35';
+        el.textContent = d;
+        dowRow.appendChild(el);
+      });
+      card.appendChild(dowRow);
+
+      const daysGrid = document.createElement('div');
+      daysGrid.className = 'grid grid-cols-7 gap-1.5';
+
+      for(let i=0;i<firstDay;i++){
+        const empty = document.createElement('div');
+        empty.className = 'day-cell empty';
+        daysGrid.appendChild(empty);
+      }
+
+      for(let d=1; d<=daysInMonth; d++){
+        const key = dateKey(YEAR, m, d);
+        const cell = document.createElement('div');
+        cell.className = 'day-cell';
+        cell.textContent = d;
+        cell.dataset.key = key;
+        if(isToday(YEAR,m,d)) cell.classList.add('today');
+        applyState(cell, data[key]);
+
+        cell.addEventListener('click', ()=>{
+          const next = cycleState(data[key]);
+          if(next === null){
+            delete data[key];
+          } else {
+            data[key] = next;
+          }
+          applyState(cell, data[key]);
+          saveData();
+          updateStats();
+          updateMonthPct(m);
+        });
+
+        daysGrid.appendChild(cell);
+      }
+
+      card.appendChild(daysGrid);
+      grid.appendChild(card);
+      updateMonthPct(m);
+    }
+  }
+
+  function applyState(cell, state){
+    cell.classList.remove('present','absent');
+    if(state === 'present') cell.classList.add('present');
+    else if(state === 'absent') cell.classList.add('absent');
+  }
+
+  function updateMonthPct(m){
+    const prefix = `${YEAR}-${String(m+1).padStart(2,'0')}-`;
+    let present=0, absent=0;
+    Object.keys(data).forEach(k=>{
+      if(k.startsWith(prefix)){
+        if(data[k]==='present') present++;
+        else if(data[k]==='absent') absent++;
+      }
+    });
+    const total = present+absent;
+    const pct = total>0 ? Math.round((present/total)*100) : 0;
+    const el = document.getElementById(`month-pct-${m}`);
+    if(el){
+      el.textContent = total>0 ? pct+'%' : '—';
+      el.className = 'text-[10px] px-2 py-1 rounded-full ' + (total===0 ? 'bg-white/5 text-white/40' : pct>=75 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300');
+    }
+  }
+
+  function updateStats(){
+    let present=0, absent=0;
+    Object.values(data).forEach(v=>{
+      if(v==='present') present++;
+      else if(v==='absent') absent++;
+    });
+    const total = present + absent;
+    const pct = total>0 ? Math.round((present/total)*100) : 0;
+
+    document.getElementById('statOpen').textContent = total;
+    document.getElementById('statPresent').textContent = present;
+    document.getElementById('statAbsent').textContent = absent;
+    document.getElementById('ringText').textContent = pct+'%';
+    document.getElementById('ring').style.setProperty('--val', pct);
+
+    const ring = document.getElementById('ring');
+    if(pct < 65 && total>0){
+      ring.style.background = `conic-gradient(#f43f5e ${pct}%, rgba(255,255,255,0.08) 0)`;
+    } else {
+      ring.style.background = `conic-gradient(#10b981 ${pct}%, rgba(255,255,255,0.08) 0)`;
+    }
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    if(confirm('Clear all attendance data for 2026? This cannot be undone.')){
+      data = {};
+      saveData();
+      buildCalendar();
+      updateStats();
+    }
+  });
+
+  buildCalendar();
+  updateStats();
+</script>
+</body>
+</html>
